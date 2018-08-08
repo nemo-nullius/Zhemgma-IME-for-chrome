@@ -26,21 +26,12 @@ ime_api.onFocus.addListener(function(context) {
 });
 ime_api.onBlur.addListener(function(contextID) {
   console.log('onBlur:' + contextID);
-          //ime_api.setCandidateWindowProperties({"engineID": engineID, "properties": {"visible": false}});
-          composition_flag = false;
-          page_num = 1;
-          composition_text = "";
   context_id = -1;
 });
 ime_api.onActivate.addListener(function(engineID) {
   console.log('onActivate:' + engineID);
 });
 ime_api.onDeactivated.addListener(function(engineID) {
-          //ime_api.clearComposition({"contextID": context_id});
-          ime_api.setCandidateWindowProperties({"engineID": engineID, "properties": {"visible": false}});
-          composition_flag = false;
-          page_num = 1;
-          composition_text = "";
   console.log('onDeactivated:' + engineID);
 });
 
@@ -48,10 +39,9 @@ ime_api.onKeyEvent.addListener(
 function(engineID, keyData) {
   console.log("glb: " + window.glb_var);
   console.log('onKeyEvent:' + keyData.key + " context: " + context_id);
-  console.log(keyData);
   // handle input
-  //if (keyData.type == "keydown"){
-  if (keyData.type == "keydown" && keyData.key.match(/^[a-z,1-9,\-=]$/)) {
+  if (keyData.type == "keydown"){
+  if (keyData.key.match(/^[a-z,0-9,\-=]$/)) {
     // input chars
     if (keyData.key.match(/^[a-z]$/)) {
       if (composition_text.length >= COMPOSITION_TEXT_LEN_MAX){ // force to commit
@@ -86,30 +76,13 @@ function(engineID, keyData) {
                }
           return keys;
       }
-      // get candidates_all
-      /* for dict words_all
-      var keyRegex = "^"+composition_text+".{0,"+(4-composition_text.length).toString()+"}$";
-      console.log(keyRegex);
+      var keyRegex = "^"+composition_text+"{0,"+(4-composition_text.length).toString()+"}$";
+      console.log("keyRegex: "+keyRegex);
       var candidates_all_keys = filtered_keys(window.words_all,new RegExp(keyRegex));
-      console.log("candidates_all_keys");
-      console.log(candidates_all_keys);
       var key = [];
       candidates_all = [];
-      for (var i = 0; i<candidates_all_keys.length; i++) {
-          candidates_all.push(window.words_all[candidates_all_keys[i]]);
-      }
-      */
-      var keyRegex = new RegExp("^"+composition_text+".{0,"+(4-composition_text.length).toString()+"}$");
-      if (composition_text.length == 1){ // get candidates from words_all phrases_all symbols_all
-          var candidates_store = window.words_all.concat(window.phrases_all).concat(symbols_all);
-      }else{ // get candidates from last candidates_all
-          var candidates_store = candidates_all;
-      }
-      candidates_all = [];
-      for (var i=0; i<candidates_store.length; i++){
-          if (candidates_store[i][0].match(keyRegex)){
-              candidates_all.push(candidates_store[i]);
-          }
+      for (key in candidates_all_keys) {
+          candidates_all.push(window.words_all[key]);
       }
       
       // get candidates_page, candidates_page_array
@@ -120,7 +93,7 @@ function(engineID, keyData) {
       for (var i = 0; i < page_limit; i++){
           console.log(i);
           console.log("page_limit: "+page_limit);
-          candidates_page.push(candidates_all[(page_num-1)*PAGE_SIZE_MAX+i][1]);
+          candidates_page.push(candidates_all[(page_num-1)*PAGE_SIZE_MAX+i]);
           candidates_page_array.push({"candidate":candidates_page[i],"id":i,"label":(i+1).toString()});
           console.log("candidates_page");
           console.log(candidates_page);
@@ -178,7 +151,7 @@ function(engineID, keyData) {
           for (var i = 0; i < page_limit; i++){
               console.log(i);
               console.log("page_limit: "+page_limit);
-              candidates_page.push(candidates_all[(page_num-1)*PAGE_SIZE_MAX+i][1]);
+              candidates_page.push(candidates_all[(page_num-1)*PAGE_SIZE_MAX+i]);
               candidates_page_array.push({"candidate":candidates_page[i],"id":i,"label":(i+1).toString()});
               console.log("candidates_page");
               console.log(candidates_page);
@@ -193,7 +166,6 @@ function(engineID, keyData) {
         }
     }// page
 
-  return true;
   }/*else if (keyData.key.match(/[ `~!@#$%^&*()-=_+\[\]\\{}|;':",./<>?]/)){ 
       ime_api.commitText({"contextID": context_id,
                                "text": keyData.key});
@@ -203,19 +175,8 @@ function(engineID, keyData) {
       page_num = 1;
   }
   */
-  //} // the outest if(keyData.type)
-  else if(keyData.type=="keydown"){
-      ime_api.setCandidateWindowProperties({"engineID": engineID, "properties": {"visible": false}});
-      composition_text = "";
-      composition_flag = false;
-      page_num = 1;
-      
-      ime_api.clearComposition({"contextID": context_id});
-      if (keyData.key != "Backspace"){
-          ime_api.sendKeyEvents({"keyData":[keyData]});
-      }
-  }
+  return true;
+  } // the outest if(keyData.type)
 
   return false //last line, cannot delete
-  ime_api.clearComposition({"contextID": context_id});
 });

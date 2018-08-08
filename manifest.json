@@ -36,8 +36,11 @@
   "description": "Zhengma IME for IME extension API",
   "background": {
     "scripts": [
-      "ime.js",
-      "init.js"
+      "init.js",
+      "src/words.js",
+      "src/phrases.js",
+      "src/symbols.js",
+      "ime.js"
     ]
   },
   "input_components": [{

@@ -34,6 +34,8 @@
 
 'use strict';
 
+window.glb_var = "super global";
+
 document.addEventListener('readystatechange', function() {
   if (document.readyState == 'complete') {
     if (!chrome || !chrome.input || !chrome.input.ime) {
