@@ -1,7 +1,3 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file.
-
 //console.log(window.words_all);
 //
 PAGE_SIZE_MAX = 5;
@@ -171,6 +167,8 @@ function(engineID, keyData) {
     if (keyData.key == " "){ // force to commit
           if (candidates_page_array.length > 0 && composition_flag){ // the 1st candidate exists
             ime_api.commitText({"contextID": context_id, "text": candidates_page_array[0]["candidate"]});
+          }else{ // when input isolatedly
+            ime_api.commitText({"contextID": context_id, "text": " "});
           }
         resetGlbVar(engineID, context_id);
     }
@@ -179,7 +177,7 @@ function(engineID, keyData) {
             ime_api.commitText({"contextID": context_id, "text": candidates_page_array[0]["candidate"]});
           }
         resetGlbVar(engineID, context_id);
-          ime_api.commitText({"contextID": context_id, "text": window.cn_annotations[keyData.key]});
+        ime_api.commitText({"contextID": context_id, "text": window.cn_annotations[keyData.key]});
     }
     if (keyData.key=='"'||keyData.key == "'"){
         if (keyData.key == '"'){
@@ -193,7 +191,7 @@ function(engineID, keyData) {
             ime_api.commitText({"contextID": context_id, "text": candidates_page_array[0]["candidate"]});
           }
         resetGlbVar(engineID, context_id);
-          ime_api.commitText({"contextID": context_id, "text": output_quotation});
+        ime_api.commitText({"contextID": context_id, "text": output_quotation});
     }
     if (keyData.key.match(/^[1-9]$/)) {
         select_num = parseInt(keyData.key,10);
@@ -208,11 +206,10 @@ function(engineID, keyData) {
           }
           return true;
         }else{ //not selection, just output the number
-          ime_api.commitText({"contextID": context_id,
-                                   "text": keyData.key});
+          ime_api.commitText({"contextID": context_id, "text": keyData.key});
         }
     }
-    //page
+    // flip page
     if (keyData.key.match(/^[\-=]$/)) {
         if (composition_flag){
           console.log("entering page section");
@@ -244,11 +241,13 @@ function(engineID, keyData) {
               ime_api.setCandidates({"contextID": context_id,
                                      "candidates": candidates_page_array});
           }
-        }else{ //not page, just output +-
+        }else{ //not flip page, just output +-
           ime_api.commitText({"contextID": context_id,
                                    "text": keyData.key});
         }
-    }// page
+    }// flip page
+
+    // behavior of Backspace
     if (keyData.key == "Backspace"){ // from the outest if, this if-statement will only work when Backspace && composition_flag == true
       if (composition_text.length > 1){
         console.log("composition_text: "+composition_text);
