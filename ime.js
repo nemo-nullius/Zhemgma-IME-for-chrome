@@ -1,5 +1,11 @@
-//console.log(window.words_all);
-//
+/* Some details concerning this IME
+ * 1. When there is only one candidate, IME does not force to commit. e.g. 辑
+ * 2. When there is no candidate,
+ * 2.1 if composition_text < COMPOSITION_TEXT_LEN_MAX, IME stays. e.g. axl 
+ * 2.2 if composition text = COMPOSITION_TEXT_LEN_MAX, IME disappears. e.g. abcd
+ * 3.3 if space pressed, IME disappears.
+ *
+ */
 PAGE_SIZE_MAX = 5;
 COMPOSITION_TEXT_LEN_MAX = 4;
 
@@ -50,63 +56,8 @@ function resetGlbVar(engineID, contextID){
           }
 }
 
-ime_api.onKeyEvent.addListener(
-function(engineID, keyData) {
-  console.log("check key");
-  console.log(prev_key);
-  console.log(keyData);
-  if ((prev_key.key == "Shift" && keyData.key == "Shift") && (prev_key.type == "keydown" && keyData.type == "keyup"))
-  {// a single shift is pressed
-      console.log("shift_status " + shift_status);
-      shift_status = !shift_status;
-  }
-
-  prev_key["key"] = keyData.key;
-  prev_key["type"] = keyData.type;
-  prev_key["code"] = keyData.code;
-  if (shift_status && keyData.key.match(/[\x20-\x7e]/)){
-      // This is not needed: && !keyData.ctrlKey && !keyData.altKey
-      console.log("shift_status, do nothing");
-      ime_api.commitText({"contextID": context_id, "text": keyData.text});
-      return true;
-  }
-
-  console.log('onKeyEvent:' + keyData.key + " context: " + context_id);
-  console.log(keyData);
-  // handle input
-  //if (keyData.type == "keydown"){
-  if (keyData.type == "keydown" && keyData.altKey == false && keyData.ctrlKey == false && 
-      ((keyData.key.match(/^[a-z1-9`~!@#$%^&*()\-=_+\[\]|{}\\;':",.\/<>? ]$/) ||
-      (keyData.key == "Shift") || ((keyData.key == "Backspace") & composition_flag ) || 
-      ((keyData.key == "Enter") & composition_flag )
-      ))) {
-    // input chars
-    if (keyData.key.match(/^[a-z]$/)) {
-      if (composition_text.length >= COMPOSITION_TEXT_LEN_MAX){ // force to commit
-          composition_text = keyData.key;
-          ime_api.clearComposition({"contextID": context_id});
-          ime_api.setCandidateWindowProperties({"engineID": engineID, "properties": {"visible": false}});
-          composition_flag = false;
-          page_num = 1;
-          if (candidates_page_array.length > 0){ // the 1st candidate exists
-            ime_api.commitText({"contextID": context_id, "text": candidates_page_array[0]["candidate"]});
-          }
-      }else{
-        composition_text += keyData.key;
-      }
-
-      composition_flag = true;
-      // get candidates_all
-      var filtered_keys = function(obj, filter) {
-          var key, keys = [];
-              for (key in obj) {
-                  if (obj.hasOwnProperty(key) && filter.test(key)) {
-                        keys.push(key);
-                  }
-               }
-          return keys;
-      }
-      // get candidates_all
+function getCandidates(){
+      // get candidates_all candidates_page_array
       /* The order of the candidates:
        * 1. candidates having the same codes with the composition_text (same)
        * 2. candidates having codes beginning with codes same to the composition_text (similar)
@@ -146,12 +97,13 @@ function(engineID, keyData) {
         }
         candidates_all = candidates_same.concat(candidates_similar);
       }
+      
       candidates_store.push(candidates_all);
       
       // get candidates_page_array
       //candidates_page_array = [ {"candidate":"a","id":1,"label":"1","annotation":"1st"}, {...}];
       candidates_page_array = [];
-      page_limit = (page_num*PAGE_SIZE_MAX<candidates_all.length)? PAGE_SIZE_MAX : candidates_all.length - ((page_num-1)*PAGE_SIZE_MAX);
+      var page_limit = (page_num*PAGE_SIZE_MAX<candidates_all.length)? PAGE_SIZE_MAX : candidates_all.length - ((page_num-1)*PAGE_SIZE_MAX);
       for (var i = 0; i < page_limit; i++){
           console.log(i);
           console.log("page_limit: "+page_limit);
@@ -161,38 +113,112 @@ function(engineID, keyData) {
           console.log("candidates_page_array");
           console.log(candidates_page_array);
       }
-      var candidates_sum = candidates_all.length;
+}
 
-      ime_api.setComposition({"contextID": context_id,
-                                "text": composition_text,
-                                "cursor": composition_text.length});
-      ime_api.setCandidateWindowProperties({"engineID": engineID,
-                                           "properties": {
-                                               "visible": true,
-                                               "vertical": true,
-                                               "cursorVisible": true,
-                                               "auxiliaryText": candidates_sum.toString(),
-                                               "auxiliaryTextVisible": true,
-                                               "pageSize": PAGE_SIZE_MAX}});
-      ime_api.setCandidates({"contextID": context_id,
-                             "candidates": candidates_page_array});
+
+function getCandidates4Backspace(){
+    // get candidates_all, candidates_page_array
+        candidates_all = candidates_store[composition_text.length-1];
+        candidates_store.pop();
+        candidates_page_array = [];
+        candidates_page = [];
+        var page_limit = (page_num*PAGE_SIZE_MAX<candidates_all.length)? PAGE_SIZE_MAX : candidates_all.length - ((page_num-1)*PAGE_SIZE_MAX);
+        for (var i = 0; i < page_limit; i++){
+            candidates_page_array.push({"candidate":candidates_all[(page_num-1)*PAGE_SIZE_MAX+i][1],
+                                         "id":i,"label":(i+1).toString(), 
+                                         "annotation":candidates_all[(page_num-1)*PAGE_SIZE_MAX+i][0]});
+        }
+}
+
+ime_api.onKeyEvent.addListener(
+function(engineID, keyData) {
+  console.log("check key");
+  console.log(prev_key);
+  console.log(keyData);
+  if ((prev_key.key == "Shift" && keyData.key == "Shift") && (prev_key.type == "keydown" && keyData.type == "keyup"))
+  {// a single shift is pressed
+      console.log("shift_status " + shift_status);
+      shift_status = !shift_status;
+  }
+
+  prev_key["key"] = keyData.key;
+  prev_key["type"] = keyData.type;
+  prev_key["code"] = keyData.code;
+  if (shift_status && keyData.type == "keydown" && keyData.key.match(/^[\x20-\x7e]$/)){
+      // ATTENTION:
+      // keyData.type == "keydown"
+      //     keep type == "keyup" from committing texts
+      // .match(/^...$/)
+      //     keep "Enter/Space/Ctrl/Shift/..." from answering
+      // This is not needed: && !keyData.ctrlKey && !keyData.altKey
+      console.log("shift_status, do nothing");
+      ime_api.commitText({"contextID": context_id, "text": keyData.key});
+      return true;
+  }
+
+  console.log('onKeyEvent:' + keyData.key + " context: " + context_id);
+  console.log(keyData);
+  // handle input
+  //if (keyData.type == "keydown"){
+  if (keyData.type == "keydown" && keyData.altKey == false && keyData.ctrlKey == false && 
+      ((keyData.key.match(/^[a-z1-9`~!@#$%^&*()\-=_+\[\]|{}\\;':",.\/<>? ]$/) ||
+      (keyData.key == "Shift") || ((keyData.key == "Backspace") & composition_flag ) || 
+      ((keyData.key == "Enter") & composition_flag )
+      ))) {
+    // input chars
+    if (keyData.key.match(/^[a-z]$/)) {
+      if (composition_text.length >= COMPOSITION_TEXT_LEN_MAX){ // force to commit
+          composition_text = keyData.key;
+          ime_api.clearComposition({"contextID": context_id});
+          ime_api.setCandidateWindowProperties({"engineID": engineID, "properties": {"visible": false}});
+          composition_flag = false;
+          page_num = 1;
+          if (candidates_page_array.length > 0){ // the 1st candidate exists
+            ime_api.commitText({"contextID": context_id, "text": candidates_page_array[0]["candidate"]});
+          }
+      }else{
+        composition_text += keyData.key;
+      }
+
+      composition_flag = true;
+
+      // to get candidates_all candidates_page_array
+      getCandidates();
+      
+      // wipe the window when there is nothing and COMPOSITION_TEXT_LEN_MAX
+      if (candidates_all.length == 0 && composition_text.length == COMPOSITION_TEXT_LEN_MAX){
+          resetGlbVar(engineID, context_id); // show nothing
+      }else{
+          ime_api.setCandidates({"contextID": context_id, "candidates": candidates_page_array});
+          ime_api.setComposition({"contextID": context_id, "text": composition_text, "cursor": composition_text.length});
+          ime_api.setCandidateWindowProperties({"engineID": engineID,
+                                               "properties": {
+                                                   "visible": true,
+                                                   "vertical": true,
+                                                   "cursorVisible": true,
+                                                   "auxiliaryText": candidates_all.length.toString(),
+                                                   "auxiliaryTextVisible": true,
+                                                   "pageSize": PAGE_SIZE_MAX}});
+      }
      } // match(/^[a-z]$/)
 
     //commit
     if (keyData.key == " "){ // force to commit
           if (candidates_page_array.length > 0 && composition_flag){ // the 1st candidate exists
             ime_api.commitText({"contextID": context_id, "text": candidates_page_array[0]["candidate"]});
-          }else{ // when input isolatedly
+          }else if(candidates_all == 0 && composition_flag){ // when there is no candidates - do nothing
+              // for the final resetGlbVar() to work
+          }else{// when input isolatedly
             ime_api.commitText({"contextID": context_id, "text": " "});
           }
-        resetGlbVar(engineID, context_id);
+          resetGlbVar(engineID, context_id);
     }
     if (keyData.key.match(/^[`~!@#$%^&*()_+\[\]|{}\\;:,.\/<>?]$/)){
           if (candidates_page_array.length > 0 && composition_flag){ // the 1st candidate exists
             ime_api.commitText({"contextID": context_id, "text": candidates_page_array[0]["candidate"]});
           }
-        resetGlbVar(engineID, context_id);
-        ime_api.commitText({"contextID": context_id, "text": window.cn_annotations[keyData.key]});
+          resetGlbVar(engineID, context_id);
+          ime_api.commitText({"contextID": context_id, "text": window.cn_annotations[keyData.key]});
     }
     if (keyData.key=='"'||keyData.key == "'"){
         if (keyData.key == '"'){
@@ -268,35 +294,11 @@ function(engineID, keyData) {
         console.log("composition_text: "+composition_text);
         console.log("candidates_store");
         console.log(candidates_store);
-        //ime_api.deleteSurroundingText({"engineID":engineID,"contextID":context_id, "offset":1, "length":2});// length: len of the string to be deleted
         composition_text = composition_text.slice(0, composition_text.length-1);
-        candidates_all = candidates_store[composition_text.length-1];
-        candidates_store.pop();
-        candidates_page_array = [];
-        candidates_page = [];
-        page_limit = (page_num*PAGE_SIZE_MAX<candidates_all.length)? PAGE_SIZE_MAX : candidates_all.length - ((page_num-1)*PAGE_SIZE_MAX);
-        for (var i = 0; i < page_limit; i++){
-            candidates_page_array.push({"candidate":candidates_all[(page_num-1)*PAGE_SIZE_MAX+i][1],
-                                         "id":i,"label":(i+1).toString(), 
-                                         "annotation":candidates_all[(page_num-1)*PAGE_SIZE_MAX+i][0]});
-        }
-      //ime_api.sendKeyEvents({"contextID": context_id, "keyData":[keyData]});
-      ime_api.setCandidates({"contextID": context_id,
-                             "candidates": candidates_page_array});
-      ime_api.setComposition({"contextID": context_id,
-                                "text": composition_text,
-                                "cursor": composition_text.length});
-      /*
-      ime_api.setCandidateWindowProperties({"engineID": engineID,
-                                           "properties": {
-                                               "visible": true,
-                                               "vertical": true,
-                                               "cursorVisible": true,
-                                               "auxiliaryText": candidates_sum.toString(),
-                                               "auxiliaryTextVisible": true,
-                                               "pageSize": PAGE_SIZE_MAX}});
-                                               */
-      composition_flag = true;
+        getCandidates4Backspace();
+        ime_api.setCandidates({"contextID": context_id, "candidates": candidates_page_array});
+        ime_api.setComposition({"contextID": context_id, "text": composition_text, "cursor": composition_text.length});
+        composition_flag = true;
     }else{
         resetGlbVar(engineID, context_id); // to del the composition window and reset all when all composition texts are deleted
     }

@@ -1,5 +1,14 @@
 // bug: duplicate keys
       /* for dict words_all
+      var filtered_keys = function(obj, filter) {
+          var key, keys = [];
+              for (key in obj) {
+                  if (obj.hasOwnProperty(key) && filter.test(key)) {
+                        keys.push(key);
+                  }
+               }
+          return keys;
+      }
       var keyRegex = "^"+composition_text+".{0,"+(4-composition_text.length).toString()+"}$";
       console.log(keyRegex);
       var candidates_all_keys = filtered_keys(window.words_all,new RegExp(keyRegex));
