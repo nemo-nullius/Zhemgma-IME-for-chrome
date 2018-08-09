@@ -1,4 +1,16 @@
 // bug: duplicate keys
+      /* for dict words_all
+      var keyRegex = "^"+composition_text+".{0,"+(4-composition_text.length).toString()+"}$";
+      console.log(keyRegex);
+      var candidates_all_keys = filtered_keys(window.words_all,new RegExp(keyRegex));
+      console.log("candidates_all_keys");
+      console.log(candidates_all_keys);
+      var key = [];
+      candidates_all = [];
+      for (var i = 0; i<candidates_all_keys.length; i++) {
+          candidates_all.push(window.words_all[candidates_all_keys[i]]);
+      }
+      */
 window.words_all={
 "a": "一",
 "aai": "亍",

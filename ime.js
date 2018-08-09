@@ -119,29 +119,31 @@ function(engineID, keyData) {
           return keys;
       }
       // get candidates_all
-      /* for dict words_all
-      var keyRegex = "^"+composition_text+".{0,"+(4-composition_text.length).toString()+"}$";
-      console.log(keyRegex);
-      var candidates_all_keys = filtered_keys(window.words_all,new RegExp(keyRegex));
-      console.log("candidates_all_keys");
-      console.log(candidates_all_keys);
-      var key = [];
-      candidates_all = [];
-      for (var i = 0; i<candidates_all_keys.length; i++) {
-          candidates_all.push(window.words_all[candidates_all_keys[i]]);
-      }
-      */
-      var keyRegex = new RegExp("^"+composition_text+".{0,"+(4-composition_text.length).toString()+"}$");
+      /* The order of the candidates:
+       * 1. candidates having the same codes with the composition_text (same)
+       * 2. candidates having codes beginning with codes same to the composition_text (similar)
+       * 2.1 words 1st
+       * 2.2 phrases 2nd
+       * 2.3 symbols 3rd
+       */
+      //var keyRegex = new RegExp("^"+composition_text+".{0,"+(4-composition_text.length).toString()+"}$"); //regex for similar & same
+      var keyRegex_similar = new RegExp("^"+composition_text+".{1,"+(4-composition_text.length).toString()+"}$"); //regex for similar
+      var candidates_same = [];
+      var candidates_similar = [];
       if (candidates_store.length == 0){
           candidates_store.push(window.words_all.concat(window.phrases_all).concat(window.symbols_all));
       }
       candidates_all = [];
       for (var i=0; i<candidates_store[composition_text.length-1].length; i++){
-          if (candidates_store[composition_text.length-1][i][0].match(keyRegex)){
-              candidates_all.push(candidates_store[composition_text.length-1][i]);
+          if (candidates_store[composition_text.length-1][i][0] == composition_text){
+              candidates_same.push(candidates_store[composition_text.length-1][i]);
+          }
+          if (candidates_store[composition_text.length-1][i][0].match(keyRegex_similar)){
+              candidates_similar.push(candidates_store[composition_text.length-1][i]);
           }
       }
-     candidates_store.push(candidates_all);
+      candidates_all = candidates_same.concat(candidates_similar);
+      candidates_store.push(candidates_all);
       
       // get candidates_page_array
       //candidates_page_array = [ {"candidate":"a","id":1,"label":"1","annotation":"1st"}, {...}];
