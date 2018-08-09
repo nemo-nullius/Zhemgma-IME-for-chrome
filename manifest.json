@@ -41,6 +41,9 @@
       "src/phrases.js",
       "src/symbols.js",
       "src/cn_annotations.js",
+      "src/words_index.js",
+      "src/phrases_index.js",
+      "src/symbols.js",
       "ime.js"
     ]
   },

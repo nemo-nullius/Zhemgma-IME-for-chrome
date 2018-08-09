@@ -23,6 +23,7 @@ var shift_status = false; // to determine wheter to input English or not
 //candidates_all = ["a","b","c","d","e","f","g","h","i","j","k"];
 
 console.log("Initializing IME");
+console.log=function(){};
 
 ime_api.onFocus.addListener(function(context) {
   console.log('onFocus:' + context.contextID);
@@ -76,7 +77,8 @@ function(engineID, keyData) {
   //if (keyData.type == "keydown"){
   if (keyData.type == "keydown" && keyData.altKey == false && keyData.ctrlKey == false && 
       ((keyData.key.match(/^[a-z1-9`~!@#$%^&*()\-=_+\[\]|{}\\;':",.\/<>? ]$/) ||
-      (keyData.key == "Shift") || ((keyData.key == "Backspace") & composition_flag )
+      (keyData.key == "Shift") || ((keyData.key == "Backspace") & composition_flag ) || 
+      ((keyData.key == "Enter") & composition_flag )
       ))) {
     // input chars
     if (keyData.key.match(/^[a-z]$/)) {
@@ -93,15 +95,6 @@ function(engineID, keyData) {
         composition_text += keyData.key;
       }
 
-      ime_api.setComposition({"contextID": context_id,
-                                "text": composition_text,
-                                "cursor": composition_text.length});
-      ime_api.setCandidateWindowProperties({"engineID": engineID,
-                                           "properties": {
-                                               "visible": true,
-                                               "vertical": true,
-                                               "cursorVisible": true,
-                                               "pageSize": PAGE_SIZE_MAX}});
       composition_flag = true;
       // get candidates_all
       var filtered_keys = function(obj, filter) {
@@ -127,21 +120,32 @@ function(engineID, keyData) {
       }
       var candidates_same = [];
       var candidates_similar = [];
-      if (candidates_store.length == 0){
-          candidates_store.push(window.words_all.concat(window.phrases_all).concat(window.symbols_all));
-      }
-      candidates_all = [];
-      for (var i=0; i<candidates_store[composition_text.length-1].length; i++){
-          if (candidates_store[composition_text.length-1][i][0] == composition_text){
-              candidates_same.push(candidates_store[composition_text.length-1][i]);
+      // get all candidates based on the first letter of composition_text
+        // composition_text.length == 1 && candidates_store.length == 0
+      if (composition_text.length == 1){
+          console.log("composition_text len 1");
+          // (deprecated) candidates_store.push(window.words_all.concat(window.phrases_all).concat(window.symbols_all));
+          // as a code with a single letter is related to a single word (rather than a phrase or a symbol)
+          // there is no need to rearrange its order
+          if (composition_text == "a"){ 
+            candidates_all = window.words_all.slice(window.words_index_1dp["a"][0], window.words_index_1dp["a"][1]).concat(window.phrases_all.slice(window.phrases_index_1dp["a"][0], window.phrases_index_1dp["a"][1])).concat(window.symbols_all);
+          }else{ // symbols_all does not contain codes other than a***
+            candidates_all = window.words_all.slice(window.words_index_1dp[composition_text][0], window.words_index_1dp[composition_text][1]).concat(window.phrases_all.slice(window.phrases_index_1dp[composition_text][0], window.phrases_index_1dp[composition_text][1]));
           }
-          if (composition_text.length < 4){
-            if (candidates_store[composition_text.length-1][i][0].match(keyRegex_similar)){
-                candidates_similar.push(candidates_store[composition_text.length-1][i]);
+      }else{ // composition_text > 1
+        candidates_all = [];
+        for (var i=0; i<candidates_store[composition_text.length-2].length; i++){
+            if (candidates_store[composition_text.length-2][i][0] == composition_text){
+                candidates_same.push(candidates_store[composition_text.length-2][i]);
             }
-          }
+            if (composition_text.length < 4){
+              if (candidates_store[composition_text.length-2][i][0].match(keyRegex_similar)){
+                  candidates_similar.push(candidates_store[composition_text.length-2][i]);
+              }
+            }
+        }
+        candidates_all = candidates_same.concat(candidates_similar);
       }
-      candidates_all = candidates_same.concat(candidates_similar);
       candidates_store.push(candidates_all);
       
       // get candidates_page_array
@@ -157,7 +161,19 @@ function(engineID, keyData) {
           console.log("candidates_page_array");
           console.log(candidates_page_array);
       }
+      var candidates_sum = candidates_all.length;
 
+      ime_api.setComposition({"contextID": context_id,
+                                "text": composition_text,
+                                "cursor": composition_text.length});
+      ime_api.setCandidateWindowProperties({"engineID": engineID,
+                                           "properties": {
+                                               "visible": true,
+                                               "vertical": true,
+                                               "cursorVisible": true,
+                                               "auxiliaryText": candidates_sum.toString(),
+                                               "auxiliaryTextVisible": true,
+                                               "pageSize": PAGE_SIZE_MAX}});
       ime_api.setCandidates({"contextID": context_id,
                              "candidates": candidates_page_array});
      } // match(/^[a-z]$/)
@@ -254,7 +270,7 @@ function(engineID, keyData) {
         console.log(candidates_store);
         //ime_api.deleteSurroundingText({"engineID":engineID,"contextID":context_id, "offset":1, "length":2});// length: len of the string to be deleted
         composition_text = composition_text.slice(0, composition_text.length-1);
-        candidates_all = candidates_store[composition_text.length];
+        candidates_all = candidates_store[composition_text.length-1];
         candidates_store.pop();
         candidates_page_array = [];
         candidates_page = [];
@@ -276,6 +292,8 @@ function(engineID, keyData) {
                                                "visible": true,
                                                "vertical": true,
                                                "cursorVisible": true,
+                                               "auxiliaryText": candidates_sum.toString(),
+                                               "auxiliaryTextVisible": true,
                                                "pageSize": PAGE_SIZE_MAX}});
                                                */
       composition_flag = true;
@@ -284,6 +302,13 @@ function(engineID, keyData) {
     }
         console.log("del activated");
     }// Backspace
+
+    // behavior of Enter (from outest if, only work when composition_flag == true
+    if (keyData.key == "Enter"){
+        ime_api.commitText({"contextID": context_id, "text": composition_text});
+        resetGlbVar(engineID, context_id);
+        
+    }
 
   return true;
   } // the outest if(keyData.type)
