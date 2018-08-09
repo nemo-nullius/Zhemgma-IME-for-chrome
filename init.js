@@ -34,7 +34,6 @@
 
 'use strict';
 
-window.glb_var = "super global";
 
 document.addEventListener('readystatechange', function() {
   if (document.readyState == 'complete') {
@@ -42,6 +41,5 @@ document.addEventListener('readystatechange', function() {
       console.error('chrome.input.ime APIs are not available');
       return;
     }
-    new sampleImeForImeExtensionApi.SampleIme();
   }
 }, true);

@@ -70,7 +70,6 @@ function(engineID, keyData) {
       return true;
   }
 
-  console.log("glb: " + window.glb_var);
   console.log('onKeyEvent:' + keyData.key + " context: " + context_id);
   console.log(keyData);
   // handle input
