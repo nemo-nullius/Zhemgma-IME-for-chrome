@@ -91,8 +91,8 @@ function(engineID, keyData) {
           ime_api.setCandidateWindowProperties({"engineID": engineID, "properties": {"visible": false}});
           composition_flag = false;
           page_num = 1;
-          if (candidates_page.length > 0){ // the 1st candidate exists
-            ime_api.commitText({"contextID": context_id, "text": candidates_page[0]});
+          if (candidates_page_array.length > 0){ // the 1st candidate exists
+            ime_api.commitText({"contextID": context_id, "text": candidates_page_array[0]["candidate"]});
           }
       }else{
         composition_text += keyData.key;
@@ -143,18 +143,16 @@ function(engineID, keyData) {
       }
      candidates_store.push(candidates_all);
       
-      // get candidates_page, candidates_page_array
+      // get candidates_page_array
       //candidates_page_array = [ {"candidate":"a","id":1,"label":"1","annotation":"1st"}, {...}];
       candidates_page_array = [];
-      candidates_page = [];
       page_limit = (page_num*PAGE_SIZE_MAX<candidates_all.length)? PAGE_SIZE_MAX : candidates_all.length - ((page_num-1)*PAGE_SIZE_MAX);
       for (var i = 0; i < page_limit; i++){
           console.log(i);
           console.log("page_limit: "+page_limit);
-          candidates_page.push(candidates_all[(page_num-1)*PAGE_SIZE_MAX+i][1]);
-          candidates_page_array.push({"candidate":candidates_page[i],"id":i,"label":(i+1).toString()});
-          console.log("candidates_page");
-          console.log(candidates_page);
+          candidates_page_array.push({"candidate":candidates_all[(page_num-1)*PAGE_SIZE_MAX+i][1],
+                                      "id":i,"label":(i+1).toString(), 
+                                      "annotation":candidates_all[(page_num-1)*PAGE_SIZE_MAX+i][0]});
           console.log("candidates_page_array");
           console.log(candidates_page_array);
       }
@@ -165,14 +163,14 @@ function(engineID, keyData) {
 
     //commit
     if (keyData.key == " "){ // force to commit
-          if (candidates_page.length > 0 && composition_flag){ // the 1st candidate exists
-            ime_api.commitText({"contextID": context_id, "text": candidates_page[0]});
+          if (candidates_page_array.length > 0 && composition_flag){ // the 1st candidate exists
+            ime_api.commitText({"contextID": context_id, "text": candidates_page_array[0]["candidate"]});
           }
         resetGlbVar(engineID, context_id);
     }
     if (keyData.key.match(/^[`~!@#$%^&*()_+\[\]|{}\\;:,.\/<>?]$/)){
-          if (candidates_page.length > 0 && composition_flag){ // the 1st candidate exists
-            ime_api.commitText({"contextID": context_id, "text": candidates_page[0]});
+          if (candidates_page_array.length > 0 && composition_flag){ // the 1st candidate exists
+            ime_api.commitText({"contextID": context_id, "text": candidates_page_array[0]["candidate"]});
           }
         resetGlbVar(engineID, context_id);
           ime_api.commitText({"contextID": context_id, "text": window.cn_annotations[keyData.key]});
@@ -185,8 +183,8 @@ function(engineID, keyData) {
             output_quotation = (single_quotation_flag)? "’" : "‘";
             single_quotation_flag = !single_quotation_flag;
         }
-         if (candidates_page.length > 0 && composition_flag){ // the 1st candidate exists
-            ime_api.commitText({"contextID": context_id, "text": candidates_page[0]});
+         if (candidates_page_array.length > 0 && composition_flag){ // the 1st candidate exists
+            ime_api.commitText({"contextID": context_id, "text": candidates_page_array[0]["candidate"]});
           }
         resetGlbVar(engineID, context_id);
           ime_api.commitText({"contextID": context_id, "text": output_quotation});
@@ -195,10 +193,10 @@ function(engineID, keyData) {
         select_num = parseInt(keyData.key,10);
         if (composition_text){ //clear composition candidateWindow
           resetGlbVar(engineID, context_id);
-          if (select_num <= candidates_page.length){ // select the candidates
+          if (select_num <= candidates_page_array.length){ // select the candidates
             console.log("entering select section");
             ime_api.commitText({"contextID": context_id,
-                                       "text": candidates_page[select_num-1]});
+                                       "text": candidates_page_array[select_num-1]["candidate"]});
           }else{ // number not in the selection range
             ime_api.commitText({"contextID": context_id, "text": keyData.key});
           }
@@ -232,10 +230,9 @@ function(engineID, keyData) {
           for (var i = 0; i < page_limit; i++){
               console.log(i);
               console.log("page_limit: "+page_limit);
-              candidates_page.push(candidates_all[(page_num-1)*PAGE_SIZE_MAX+i][1]);
-              candidates_page_array.push({"candidate":candidates_page[i],"id":i,"label":(i+1).toString()});
-              console.log("candidates_page");
-              console.log(candidates_page);
+              candidates_page_array.push({"candidate":candidates_all[(page_num-1)*PAGE_SIZE_MAX+i][1],
+                                          "id":i,"label":(i+1).toString(), 
+                                          "annotation":candidates_all[(page_num-1)*PAGE_SIZE_MAX+i][0]});
               console.log("candidates_page_array");
               console.log(candidates_page_array);
               ime_api.setCandidates({"contextID": context_id,
@@ -259,8 +256,9 @@ function(engineID, keyData) {
         candidates_page = [];
         page_limit = (page_num*PAGE_SIZE_MAX<candidates_all.length)? PAGE_SIZE_MAX : candidates_all.length - ((page_num-1)*PAGE_SIZE_MAX);
         for (var i = 0; i < page_limit; i++){
-            candidates_page.push(candidates_all[(page_num-1)*PAGE_SIZE_MAX+i][1]);
-            candidates_page_array.push({"candidate":candidates_page[i],"id":i,"label":(i+1).toString()});
+            candidates_page_array.push({"candidate":candidates_all[(page_num-1)*PAGE_SIZE_MAX+i][1],
+                                         "id":i,"label":(i+1).toString(), 
+                                         "annotation":candidates_all[(page_num-1)*PAGE_SIZE_MAX+i][0]});
         }
       //ime_api.sendKeyEvents({"contextID": context_id, "keyData":[keyData]});
       ime_api.setCandidates({"contextID": context_id,
