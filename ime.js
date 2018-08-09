@@ -127,7 +127,9 @@ function(engineID, keyData) {
        * 2.3 symbols 3rd
        */
       //var keyRegex = new RegExp("^"+composition_text+".{0,"+(4-composition_text.length).toString()+"}$"); //regex for similar & same
-      var keyRegex_similar = new RegExp("^"+composition_text+".{1,"+(4-composition_text.length).toString()+"}$"); //regex for similar
+      if (composition_text.length < 4){ // there is no similar codes whencomposition_text == 4
+        var keyRegex_similar = new RegExp ("^"+composition_text+".{1,"+(4-composition_text.length).toString()+"}$"); //regex for similar
+      }
       var candidates_same = [];
       var candidates_similar = [];
       if (candidates_store.length == 0){
@@ -138,8 +140,10 @@ function(engineID, keyData) {
           if (candidates_store[composition_text.length-1][i][0] == composition_text){
               candidates_same.push(candidates_store[composition_text.length-1][i]);
           }
-          if (candidates_store[composition_text.length-1][i][0].match(keyRegex_similar)){
-              candidates_similar.push(candidates_store[composition_text.length-1][i]);
+          if (composition_text.length < 4){
+            if (candidates_store[composition_text.length-1][i][0].match(keyRegex_similar)){
+                candidates_similar.push(candidates_store[composition_text.length-1][i]);
+            }
           }
       }
       candidates_all = candidates_same.concat(candidates_similar);
