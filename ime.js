@@ -10,13 +10,13 @@
  * 2. space forces to commit text but does not append itself
  * 3. After input & flip page, page_num = 1
  */
-PAGE_SIZE_MAX = 5;
+PAGE_SIZE_MAX = 5; // how many candidates are there in one page
 COMPOSITION_TEXT_LEN_MAX = 4;
 
 var ime_api = chrome.input.ime;
 var context_id = -1;
 var candidates_all = []; // all candidates
-var cadidates_page = []; // candidates in one page
+var candidates_page_array = []; // candidates in one page
 var double_quotation_flag = false // f “ T ”
 var single_quotation_flag = false
 
@@ -27,13 +27,14 @@ var page_num = 1; // which page it is in the candidate box
 var candidates_store = [] // an array to store all the candidates from 1 to 4
 
 // to store the previous key to examine whether a sing shift is pressed
-var prev_key = {"key":"","code":"","type":""};
+var prev_key = {"key":"","code":"","type":""}; // record keys, including keyup & keydown
+var prev_key_keydown = {"key":"","code":""}; // only record keydown
 var shift_status = false; // to determine wheter to input English or not
 
 //candidates_all = ["a","b","c","d","e","f","g","h","i","j","k"];
 
 console.log("Initializing IME");
-console.log=function(){};
+//console.log=function(){};
 
 ime_api.onFocus.addListener(function(context) {
   console.log('onFocus:' + context.contextID);
@@ -142,6 +143,7 @@ function getAuxiliaryText(){
 
 ime_api.onKeyEvent.addListener(
 function(engineID, keyData) {
+  // process both KEYDOWN and KEYUP
   console.log("check key");
   console.log(prev_key);
   console.log(keyData);
@@ -169,9 +171,9 @@ function(engineID, keyData) {
   console.log('onKeyEvent:' + keyData.key + " context: " + context_id);
   console.log(keyData);
   // handle input
-  //if (keyData.type == "keydown"){
+  // process KEYDOWN ONLY
   if (keyData.type == "keydown" && keyData.altKey == false && keyData.ctrlKey == false && 
-      ((keyData.key.match(/^[a-z1-9`~!@#$%^&*()\-=_+\[\]|{}\\;':",.\/<>? ]$/) ||
+      ((keyData.key.match(/^[a-z0-9`~!@#$%^&*()\-=_+\[\]|{}\\;':",.\/<>? ]$/) ||
       (keyData.key == "Shift") || ((keyData.key == "Backspace") & composition_flag ) || 
       ((keyData.key == "Enter") & composition_flag )
       ))) {
@@ -211,10 +213,10 @@ function(engineID, keyData) {
                                                      "auxiliaryTextVisible": true,
                                                      "pageSize": PAGE_SIZE_MAX}});
       }
-     } // match(/^[a-z]$/)
+    } // match(/^[a-z]$/)
 
     //commit
-    if (keyData.key == " "){ // force to commit
+    else if (keyData.key == " "){ // force to commit
           if (candidates_page_array.length > 0 && composition_flag){ // the 1st candidate exists
             ime_api.commitText({"contextID": context_id, "text": candidates_page_array[0]["candidate"]});
           }else if(candidates_all == 0 && composition_flag){ // when there is no candidates - do nothing
@@ -224,14 +226,24 @@ function(engineID, keyData) {
           }
           resetGlbVar(engineID, context_id);
     }
-    if (keyData.key.match(/^[`~!@#$%^&*()_+\[\]|{}\\;:,.\/<>?]$/)){
+    else if (keyData.key == "."){
+          if (candidates_page_array.length > 0 && composition_flag){ // the 1st candidate exists - force to commit
+            ime_api.commitText({"contextID": context_id, "text": candidates_page_array[0]["candidate"] + window.cn_annotations[keyData.key]});
+          }else if(prev_key_keydown.key.match(/^[0-9]$/)){ // after numbers
+            ime_api.commitText({"contextID": context_id, "text": '.'});
+          }else{
+            ime_api.commitText({"contextID": context_id, "text": window.cn_annotations[keyData.key]});
+          }
+          resetGlbVar(engineID, context_id);
+    }
+    else if (keyData.key.match(/^[`~!@#$%^&*()_+\[\]|{}\\;:,\/<>?]$/)){
           if (candidates_page_array.length > 0 && composition_flag){ // the 1st candidate exists
             ime_api.commitText({"contextID": context_id, "text": candidates_page_array[0]["candidate"]});
           }
-          resetGlbVar(engineID, context_id);
           ime_api.commitText({"contextID": context_id, "text": window.cn_annotations[keyData.key]});
+          resetGlbVar(engineID, context_id);
     }
-    if (keyData.key=='"'||keyData.key == "'"){
+    else if (keyData.key=='"'||keyData.key == "'"){
         if (keyData.key == '"'){
             output_quotation = (double_quotation_flag)? "”" : "“";
             double_quotation_flag = !double_quotation_flag;
@@ -242,27 +254,26 @@ function(engineID, keyData) {
          if (candidates_page_array.length > 0 && composition_flag){ // the 1st candidate exists
             ime_api.commitText({"contextID": context_id, "text": candidates_page_array[0]["candidate"]});
           }
-        resetGlbVar(engineID, context_id);
         ime_api.commitText({"contextID": context_id, "text": output_quotation});
+        resetGlbVar(engineID, context_id);
     }
-    if (keyData.key.match(/^[1-9]$/)) {
+    else if (keyData.key.match(/^[0-9]$/)) {
         select_num = parseInt(keyData.key,10);
-        if (composition_text){ //clear composition candidateWindow
-          resetGlbVar(engineID, context_id);
+        select_num = (select_num == 0)? 10 : select_num;
+        if (composition_text && candidates_page_array.length > 0){
           if (select_num <= candidates_page_array.length){ // select the candidates
             console.log("entering select section");
-            ime_api.commitText({"contextID": context_id,
-                                       "text": candidates_page_array[select_num-1]["candidate"]});
-          }else{ // number not in the selection range
-            ime_api.commitText({"contextID": context_id, "text": keyData.key});
+            ime_api.commitText({"contextID": context_id, "text": candidates_page_array[select_num-1]["candidate"]});
+          }else{ // number not in the selection range - force to commit
+            ime_api.commitText({"contextID": context_id, "text": candidates_page_array[0]["candidate"]+keyData.key});
           }
-          return true;
-        }else{ //not selection, just output the number
+        }else{ //no composition_text || candidates_page_array == 0 - not selection, just output the number
           ime_api.commitText({"contextID": context_id, "text": keyData.key});
         }
+       resetGlbVar(engineID, context_id);
     }
     // flip page
-    if (keyData.key.match(/^[\-=]$/)) {
+    else if (keyData.key.match(/^[\-=]$/)) {
         if (composition_flag){
           console.log("entering page section");
           candidates_page_array = [];
@@ -296,9 +307,8 @@ function(engineID, keyData) {
           ime_api.commitText({"contextID": context_id, "text": keyData.key});
         }
     }// flip page
-
     // behavior of Backspace
-    if (keyData.key == "Backspace"){ // from the outest if, this if-statement will only work when Backspace && composition_flag == true
+    else if (keyData.key == "Backspace"){ // from the outest if, this if-statement will only work when Backspace && composition_flag == true
       if (composition_text.length > 1){
         console.log("composition_text: "+composition_text);
         console.log("candidates_store");
@@ -309,24 +319,22 @@ function(engineID, keyData) {
         ime_api.setComposition({"contextID": context_id, "text": composition_text, "cursor": composition_text.length});
         ime_api.setCandidateWindowProperties({"engineID": engineID, "properties": { "auxiliaryText": getAuxiliaryText() }});
         composition_flag = true;
-    }else{
-        resetGlbVar(engineID, context_id); // to del the composition window and reset all when all composition texts are deleted
-    }
-        console.log("del activated");
+      }else{
+          resetGlbVar(engineID, context_id); // to del the composition window and reset all when all composition texts are deleted
+      }
+          console.log("del activated");
     }// Backspace
-
     // behavior of Enter (from outest if, only work when composition_flag == true
-    if (keyData.key == "Enter"){
+    else if (keyData.key == "Enter"){
         ime_api.commitText({"contextID": context_id, "text": composition_text});
         resetGlbVar(engineID, context_id);
-        
     }
-
+  prev_key_keydown.key = keyData.key;
+  prev_key_keydown.code = keyData.code;
   return true;
   } // the outest if(keyData.type)
-  else if(keyData.type=="keydown"){
+  else if(keyData.type=="keydown"){ // not belong to the previous keys, clear everything
       resetGlbVar(engineID, context_id);
-      //ime_api.sendKeyEvents({"contextID": context_id, "keyData":[keyData]});
   }
 
   return false //last line, cannot delete
