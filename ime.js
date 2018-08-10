@@ -5,6 +5,10 @@
  * 2.2 if composition text = COMPOSITION_TEXT_LEN_MAX, IME disappears. e.g. abcd
  * 3.3 if space pressed, IME disappears.
  *
+ * Others:
+ * 1. !@#...(punctuations) force to commit text and append itself at the end of the text
+ * 2. space forces to commit text but does not append itself
+ * 3. After input & flip page, page_num = 1
  */
 PAGE_SIZE_MAX = 5;
 COMPOSITION_TEXT_LEN_MAX = 4;
@@ -121,7 +125,7 @@ function getCandidates4Backspace(){
         candidates_all = candidates_store[composition_text.length-1];
         candidates_store.pop();
         candidates_page_array = [];
-        candidates_page = [];
+        page_num = 1; // go to page 1
         var page_limit = (page_num*PAGE_SIZE_MAX<candidates_all.length)? PAGE_SIZE_MAX : candidates_all.length - ((page_num-1)*PAGE_SIZE_MAX);
         for (var i = 0; i < page_limit; i++){
             candidates_page_array.push({"candidate":candidates_all[(page_num-1)*PAGE_SIZE_MAX+i][1],
@@ -129,6 +133,12 @@ function getCandidates4Backspace(){
                                          "annotation":candidates_all[(page_num-1)*PAGE_SIZE_MAX+i][0]});
         }
 }
+
+function getAuxiliaryText(){
+  // page_num / page_max / candidates_all.length
+  return page_num.toString()+" / "+(Math.ceil(candidates_all.length/PAGE_SIZE_MAX)).toString()+" / "+candidates_all.length.toString();
+}
+
 
 ime_api.onKeyEvent.addListener(
 function(engineID, keyData) {
@@ -172,7 +182,6 @@ function(engineID, keyData) {
           ime_api.clearComposition({"contextID": context_id});
           ime_api.setCandidateWindowProperties({"engineID": engineID, "properties": {"visible": false}});
           composition_flag = false;
-          page_num = 1;
           if (candidates_page_array.length > 0){ // the 1st candidate exists
             ime_api.commitText({"contextID": context_id, "text": candidates_page_array[0]["candidate"]});
           }
@@ -183,6 +192,7 @@ function(engineID, keyData) {
       composition_flag = true;
 
       // to get candidates_all candidates_page_array
+      page_num = 1;
       getCandidates();
       
       // wipe the window when there is nothing and COMPOSITION_TEXT_LEN_MAX
@@ -191,14 +201,15 @@ function(engineID, keyData) {
       }else{
           ime_api.setCandidates({"contextID": context_id, "candidates": candidates_page_array});
           ime_api.setComposition({"contextID": context_id, "text": composition_text, "cursor": composition_text.length});
+          // detailed properties set at the first time it appears
           ime_api.setCandidateWindowProperties({"engineID": engineID,
-                                               "properties": {
-                                                   "visible": true,
-                                                   "vertical": true,
-                                                   "cursorVisible": true,
-                                                   "auxiliaryText": candidates_all.length.toString(),
-                                                   "auxiliaryTextVisible": true,
-                                                   "pageSize": PAGE_SIZE_MAX}});
+                                                "properties": {
+                                                     "visible": true,
+                                                     "vertical": true,
+                                                     "cursorVisible": true,
+                                                     "auxiliaryText": getAuxiliaryText(),
+                                                     "auxiliaryTextVisible": true,
+                                                     "pageSize": PAGE_SIZE_MAX}});
       }
      } // match(/^[a-z]$/)
 
@@ -255,7 +266,6 @@ function(engineID, keyData) {
         if (composition_flag){
           console.log("entering page section");
           candidates_page_array = [];
-          candidates_page = [];
           if (keyData.key == "-"){
                if (page_num <= 1) {
                    page_num = 1;
@@ -263,14 +273,14 @@ function(engineID, keyData) {
                    page_num -= 1;
                }
            }else if (keyData.key=="="){
-               page_max = Math.ceil(candidates_all.length/PAGE_SIZE_MAX);
+               var page_max = Math.ceil(candidates_all.length/PAGE_SIZE_MAX);
                if (page_num < page_max){
                    page_num += 1;
                }else{
                    page_num = page_max;
                }
            }
-          page_limit = (page_num*PAGE_SIZE_MAX<candidates_all.length)? PAGE_SIZE_MAX : candidates_all.length - ((page_num-1)*PAGE_SIZE_MAX)
+          var page_limit = (page_num*PAGE_SIZE_MAX<candidates_all.length)? PAGE_SIZE_MAX : candidates_all.length - ((page_num-1)*PAGE_SIZE_MAX)
           for (var i = 0; i < page_limit; i++){
               console.log(i);
               console.log("page_limit: "+page_limit);
@@ -279,12 +289,11 @@ function(engineID, keyData) {
                                           "annotation":candidates_all[(page_num-1)*PAGE_SIZE_MAX+i][0]});
               console.log("candidates_page_array");
               console.log(candidates_page_array);
-              ime_api.setCandidates({"contextID": context_id,
-                                     "candidates": candidates_page_array});
+              ime_api.setCandidates({"contextID": context_id, "candidates": candidates_page_array});
+              ime_api.setCandidateWindowProperties({"engineID": engineID, "properties": { "auxiliaryText": getAuxiliaryText() }});
           }
         }else{ //not flip page, just output +-
-          ime_api.commitText({"contextID": context_id,
-                                   "text": keyData.key});
+          ime_api.commitText({"contextID": context_id, "text": keyData.key});
         }
     }// flip page
 
@@ -298,6 +307,7 @@ function(engineID, keyData) {
         getCandidates4Backspace();
         ime_api.setCandidates({"contextID": context_id, "candidates": candidates_page_array});
         ime_api.setComposition({"contextID": context_id, "text": composition_text, "cursor": composition_text.length});
+        ime_api.setCandidateWindowProperties({"engineID": engineID, "properties": { "auxiliaryText": getAuxiliaryText() }});
         composition_flag = true;
     }else{
         resetGlbVar(engineID, context_id); // to del the composition window and reset all when all composition texts are deleted
