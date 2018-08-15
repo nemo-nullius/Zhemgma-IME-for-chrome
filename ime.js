@@ -300,9 +300,9 @@ function(engineID, keyData) {
                                           "annotation":candidates_all[(page_num-1)*PAGE_SIZE_MAX+i][0]});
               console.log("candidates_page_array");
               console.log(candidates_page_array);
-              ime_api.setCandidates({"contextID": context_id, "candidates": candidates_page_array});
-              ime_api.setCandidateWindowProperties({"engineID": engineID, "properties": { "auxiliaryText": getAuxiliaryText() }});
           }
+          ime_api.setCandidates({"contextID": context_id, "candidates": candidates_page_array});
+          ime_api.setCandidateWindowProperties({"engineID": engineID, "properties": { "auxiliaryText": getAuxiliaryText() }});
         }else{ //not flip page, just output +-
           ime_api.commitText({"contextID": context_id, "text": keyData.key});
         }
